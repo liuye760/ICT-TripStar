@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/python-3.10+-blue.svg">
   <img src="https://img.shields.io/badge/vue-3.x-brightgreen.svg">
   <img src="https://img.shields.io/badge/FastAPI-0.100+-teal.svg">
-  <img src="https://atomgit.com/Changchang_student/TripStar/star/badge.svg">
+  <img src="https://atomgit.com/lsdv/TripStar/star/badge.svg">
 </p>
 <div align="center">
 
