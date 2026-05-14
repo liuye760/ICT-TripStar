@@ -46,8 +46,7 @@
 * **奢华暗黑玻璃拟物风**: 全新设计的暗黑系玻璃拟物化 (Dark Luxury Glassmorphism) 界面，提供极具沉浸感的高级视觉体验。
 ---
 > 举个例子要去中国——西安玩耍，只需要填写地点、日期、偏好设置，即可等待行程规划的结果，一眼预览如何安排旅游景点
-<img width="1606" height="740" alt="image" src="https://github.com/user-attachments/assets/699fa242-b959-460d-9442-90be0b19db22" />
-
+![西安.png](https://raw.atomgit.com/user-images/assets/9882448/32be924c-cb7b-4b1f-a925-553076a4a6a9/西安.png '西安.png')
 
 
 ## 系统架构
@@ -270,11 +269,7 @@ TripStar/
 
 > 下面是部分运行结果，丰富的功能探索中...
 
-<img width="1600" height="799" alt="image" src="https://github.com/user-attachments/assets/20221707-c115-4da7-aa49-80eec772bc33" />
-<img width="1598" height="801" alt="image" src="https://github.com/user-attachments/assets/1b4b745e-98f1-4868-a6dd-d32909077713" />
-<img width="1649" height="805" alt="image" src="https://github.com/user-attachments/assets/fe775f15-7a1e-467e-a1c4-f97361e13d95" />
-<img width="1599" height="823" alt="image" src="https://github.com/user-attachments/assets/a262a33d-4dbc-4f5a-b392-9b2d0ab66a31" />
-<img width="1599" height="741" alt="image" src="https://github.com/user-attachments/assets/2c236df0-6ad2-44a0-8976-93d84ea14b1f" />
+![3-1.png](https://raw.atomgit.com/user-images/assets/9882448/3ed458c2-2fd2-46c4-8e40-29d9c756f88a/3-1.png '3-1.png')![3-2.png](https://raw.atomgit.com/user-images/assets/9882448/cb04aa05-28e3-483c-82fe-2dba179f3d65/3-2.png '3-2.png')![3-3.png](https://raw.atomgit.com/user-images/assets/9882448/a12b0e28-1235-4625-8725-0d69534cbdaf/3-3.png '3-3.png')![3-4.png](https://raw.atomgit.com/user-images/assets/9882448/9e77e3ce-9705-452e-8e06-58521f86efdc/3-4.png '3-4.png')
 
 
 
