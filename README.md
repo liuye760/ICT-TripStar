@@ -1,5 +1,5 @@
-<div align="center" style="display: flex; justify-content: center; align-items: center; gap: 2px;">
-  <img width="400" alt="brand" src="https://github.com/user-attachments/assets/50c490da-9042-4661-bf8f-f7fd8084a506" />
+<div align="center">
+  <img width="400" alt="brand" src="https://raw.atomgit.com/user-images/assets/9882448/3d787e68-557f-458e-9e55-a1881c2bdf47/标头.png" />
 </div>
 <p align="center">
   <img src="https://img.shields.io/badge/license-GPL--2.0-orange">
