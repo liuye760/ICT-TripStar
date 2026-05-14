@@ -287,15 +287,6 @@ TripStar/
 - [ ] 添加小红书链接以及美食推荐增强
 - [ ] 前端优化
 
-## Star History
-
-<a href="https://www.star-history.com/?repos=1sdv%2FTripStar&type=date&logscale=&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=1sdv/TripStar&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=1sdv/TripStar&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=1sdv/TripStar&type=date&legend=top-left" />
- </picture>
-</a>
 
 ## 🙏 致谢
 感谢 [linuxdo](https://linux.do/) 社区的交流、分享与反馈，让 TripStar 的迭代更高效。
