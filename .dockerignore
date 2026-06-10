@@ -8,8 +8,11 @@ __pycache__
 .env
 backend/.env
 frontend/.env
-frontend/.env.*
+frontend/.env.local
 *.md
 MiroFish-main
 .vscode
 .idea
+.venv
+backend/.venv
+backend/data
