@@ -71,6 +71,12 @@
       "fogOn": "霧オン",
       "fogOff": "霧オフ"
     },
+    "addCity": "都市を追加",
+    "removeCity": "削除",
+    "cityStayDays": "滞在日数",
+    "cityNLabel": "都市 {n}",
+    "atLeastOneCity": "少なくとも1つの都市を追加してください",
+    "totalDays": "合計 {n} 日",
     "step1": "目的地と日程",
     "step2": "希望設定",
     "step3": "特別な要望",
@@ -160,6 +166,10 @@
       "graph": "ナレッジグラフ",
       "weather": "天気情報"
     },
+    "transferDay": "都市間移動日",
+    "transferInfo": "交通情報",
+    "interCityTransport": "都市間交通",
+    "routeOverview": "{cities} {days}日間の旅",
     "overviewTitle": "{city} 旅行プラン",
     "dateLabel": "日付:",
     "suggestionLabel": "提案:",

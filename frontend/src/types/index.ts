@@ -1,5 +1,10 @@
 // 类型定义
 
+export interface CityStay {
+  city: string
+  days: number
+}
+
 export interface Location {
   longitude: number
   latitude: number
@@ -42,12 +47,16 @@ export interface Budget {
   total_hotels: number
   total_meals: number
   total_transportation: number
+  total_inter_city_transport?: number
   total: number
 }
 
 export interface DayPlan {
   date: string
   day_index: number
+  city?: string
+  is_transfer_day?: boolean
+  transfer_info?: string
   description: string
   transportation: string
   accommodation: string
@@ -58,6 +67,7 @@ export interface DayPlan {
 
 export interface WeatherInfo {
   date: string
+  city?: string
   day_weather: string
   night_weather: string
   day_temp: number
@@ -68,6 +78,7 @@ export interface WeatherInfo {
 
 export interface TripPlan {
   city: string
+  cities?: string[]
   start_date: string
   end_date: string
   days: DayPlan[]
@@ -78,6 +89,7 @@ export interface TripPlan {
 
 export interface TripFormData {
   city: string
+  cities?: CityStay[]
   start_date: string
   end_date: string
   travel_days: number

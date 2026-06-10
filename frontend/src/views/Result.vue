@@ -191,6 +191,10 @@
                   <div class="budget-summary-sub-value">¥{{ formatBudgetAmount(tripPlan.budget?.total_transportation ?? 0) }}</div>
                   <div class="budget-summary-sub-label">{{ t('result.budget.transport') }}</div>
                 </div>
+                <div v-if="tripPlan.budget?.total_inter_city_transport" class="budget-summary-sub-item">
+                  <div class="budget-summary-sub-value">¥{{ formatBudgetAmount(tripPlan.budget.total_inter_city_transport) }}</div>
+                  <div class="budget-summary-sub-label">{{ t('result.interCityTransport') }}</div>
+                </div>
               </div>
 
               <div class="budget-pending-wrap">
@@ -249,9 +253,18 @@
               <template #header>
                 <div class="day-header">
                   <span class="day-title">{{ t('common.dayNumber', { day: index + 1 }) }}</span>
+                  <span v-if="day.city" class="day-city-tag">{{ day.city }}</span>
+                  <span v-if="day.is_transfer_day" class="day-transfer-tag">{{ t('result.transferDay') }}</span>
                   <span class="day-date">{{ day.date }}</span>
                 </div>
               </template>
+
+              <!-- 城际移动信息 -->
+              <div v-if="day.is_transfer_day && day.transfer_info" class="transfer-info-banner">
+                <span class="transfer-info-icon">🚄</span>
+                <span class="transfer-info-label">{{ t('result.transferInfo') }}:</span>
+                <span class="transfer-info-text">{{ day.transfer_info }}</span>
+              </div>
 
               <!-- 行程基本信息 -->
               <div class="day-info">
@@ -407,7 +420,7 @@
                         </g>
                     </svg>
                   </span>
-                  {{ tripPlan.city }}
+                  {{ selectedWeather?.city || tripPlan.city }}
                 </span>
               </div>
 
@@ -4161,6 +4174,53 @@ const drawRoutes = async (AMap: any, attractions: any[]): Promise<any[]> => {
 .day-date {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.35);
+  margin-left: auto;
+}
+
+.day-city-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: rgba(90, 216, 166, 0.15);
+  border: 1px solid rgba(90, 216, 166, 0.3);
+  color: #5ad8a6;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 10px;
+}
+
+.day-transfer-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: rgba(246, 189, 22, 0.15);
+  border: 1px solid rgba(246, 189, 22, 0.35);
+  color: #f6bd16;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.transfer-info-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  background: rgba(246, 189, 22, 0.08);
+  border: 1px solid rgba(246, 189, 22, 0.2);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.transfer-info-icon {
+  font-size: 18px;
+}
+
+.transfer-info-label {
+  font-weight: 600;
+  color: #f6bd16;
 }
 
 .day-info {

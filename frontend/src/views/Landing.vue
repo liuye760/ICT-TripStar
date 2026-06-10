@@ -36,19 +36,48 @@
               <span>01</span>
               <h3>{{ t('home.step1') }}</h3>
             </div>
-            <div class="grid grid4">
-              <a-form-item name="city" :rules="formRules.city">
-                <template #label>
-                  <span class="field-label">{{ t('home.cityLabel') }}</span>
-                </template>
-                <a-input
-                  v-model:value="formData.city"
-                  :placeholder="t('home.cityPlaceholder')"
-                  size="large"
-                  class="field-input"
-                />
-              </a-form-item>
 
+            <!-- 多城市动态列表 -->
+            <div class="city-list">
+              <div v-for="(cs, idx) in formData.cities" :key="idx" class="city-row">
+                <a-form-item class="city-row-name" :rules="[{ required: true, message: t('home.cityRequired') }]">
+                  <template #label>
+                    <span class="field-label">{{ t('home.cityNLabel', { n: idx + 1 }) }}</span>
+                  </template>
+                  <a-input
+                    v-model:value="cs.city"
+                    :placeholder="t('home.cityPlaceholder')"
+                    size="large"
+                    class="field-input"
+                  />
+                </a-form-item>
+                <a-form-item class="city-row-days">
+                  <template #label>
+                    <span class="field-label">{{ t('home.cityStayDays') }}</span>
+                  </template>
+                  <a-input-number
+                    v-model:value="cs.days"
+                    :min="1"
+                    :max="15"
+                    size="large"
+                    class="field-input"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+                <button
+                  v-if="formData.cities.length > 1"
+                  type="button"
+                  class="city-remove-btn"
+                  @click="removeCity(idx)"
+                >×</button>
+              </div>
+              <button type="button" class="city-add-btn" @click="addCity">
+                + {{ t('home.addCity') }}
+              </button>
+            </div>
+
+            <!-- 日期与天数 -->
+            <div class="grid grid-date">
               <a-form-item name="start_date" :rules="formRules.startDate">
                 <template #label>
                   <span class="field-label">{{ t('home.startDateLabel') }}</span>
@@ -62,25 +91,12 @@
                 />
               </a-form-item>
 
-              <a-form-item name="end_date" :rules="formRules.endDate">
-                <template #label>
-                  <span class="field-label">{{ t('home.endDateLabel') }}</span>
-                </template>
-                <a-date-picker
-                  v-model:value="formData.end_date"
-                  style="width: 100%"
-                  size="large"
-                  class="field-input"
-                  :placeholder="t('home.endDatePlaceholder')"
-                />
-              </a-form-item>
-
               <a-form-item>
                 <template #label>
                   <span class="field-label">{{ t('home.travelDaysLabel') }}</span>
                 </template>
                 <div class="days-chip">
-                  <span class="days-number">{{ formData.travel_days }}</span>
+                  <span class="days-number">{{ totalDays }}</span>
                   <span class="days-unit">{{ t('home.travelDaysUnit') }}</span>
                 </div>
               </a-form-item>
@@ -281,12 +297,17 @@ import { message } from 'ant-design-vue'
 import { generateTripPlan, getTripHistory } from '@/services/api'
 import { getCurrentLocale } from '@/i18n'
 import NavBar from '@/components/NavBar.vue'
-import type { TripFormData, TripTaskEvent, TripHistoryItem } from '@/types'
+import type { TripFormData, TripTaskEvent, TripHistoryItem, CityStay } from '@/types'
 import type { Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 
-type LandingFormData = Omit<TripFormData, 'start_date' | 'end_date'> & {
+type LandingFormData = {
+  cities: Array<{ city: string; days: number }>
   start_date: Dayjs | null
-  end_date: Dayjs | null
+  transportation: string
+  accommodation: string
+  preferences: string[]
+  free_text_input: string
 }
 
 const router = useRouter()
@@ -325,21 +346,34 @@ const interestOptions = [
 ]
 
 const formRules = computed(() => ({
-  city: [{ required: true, message: t('home.cityRequired') }],
   startDate: [{ required: true, message: t('home.startDateRequired') }],
-  endDate: [{ required: true, message: t('home.endDateRequired') }],
 }))
 
 const formData = reactive<LandingFormData>({
-  city: '',
+  cities: [{ city: '', days: 2 }],
   start_date: null,
-  end_date: null,
-  travel_days: 1,
   transportation: '公共交通',
   accommodation: '经济型酒店',
   preferences: [],
   free_text_input: '',
 })
+
+const totalDays = computed(() => formData.cities.reduce((sum, cs) => sum + (cs.days || 1), 0))
+
+const computedEndDate = computed(() => {
+  if (!formData.start_date) return null
+  return formData.start_date.add(totalDays.value - 1, 'day')
+})
+
+const addCity = () => {
+  if (formData.cities.length >= 5) return
+  formData.cities.push({ city: '', days: 2 })
+}
+
+const removeCity = (index: number) => {
+  if (formData.cities.length <= 1) return
+  formData.cities.splice(index, 1)
+}
 
 const heroProgress = computed(() => Math.min(scrollY.value / 320, 1))
 const toneProgress = computed(() => Math.min(Math.max((scrollY.value - 20) / 360, 0), 1))
@@ -429,23 +463,19 @@ onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
 })
 
-watch([() => formData.start_date, () => formData.end_date], ([start, end]) => {
-  if (start && end) {
-    const days = end.diff(start, 'day') + 1
-    if (days > 0 && days <= 30) formData.travel_days = days
-    else if (days > 30) {
-      message.warning(t('home.messages.travelDaysTooLong'))
-      formData.end_date = null
-    } else {
-      message.warning(t('home.messages.endDateEarlier'))
-      formData.end_date = null
-    }
-  }
-})
-
 const handleSubmit = async () => {
-  if (!formData.start_date || !formData.end_date) {
+  // 校验：至少一个城市名非空
+  const validCities = formData.cities.filter(cs => cs.city.trim())
+  if (validCities.length === 0) {
+    message.error(t('home.atLeastOneCity'))
+    return
+  }
+  if (!formData.start_date) {
     message.error(t('home.messages.selectDate'))
+    return
+  }
+  if (totalDays.value > 30) {
+    message.warning(t('home.messages.travelDaysTooLong'))
     return
   }
 
@@ -463,11 +493,15 @@ const handleSubmit = async () => {
     sessionStorage.removeItem('graphData')
     sessionStorage.removeItem('planId')
 
+    const citiesPayload: CityStay[] = validCities.map(cs => ({ city: cs.city.trim(), days: cs.days || 1 }))
+    const endDate = computedEndDate.value!
+
     const requestData: TripFormData = {
-      city: formData.city,
+      city: citiesPayload[0].city,
+      cities: citiesPayload,
       start_date: formData.start_date.format('YYYY-MM-DD'),
-      end_date: formData.end_date.format('YYYY-MM-DD'),
-      travel_days: formData.travel_days,
+      end_date: endDate.format('YYYY-MM-DD'),
+      travel_days: totalDays.value,
       transportation: formData.transportation,
       accommodation: formData.accommodation,
       preferences: formData.preferences,
@@ -825,8 +859,78 @@ const handleSubmit = async () => {
   grid-template-columns: 1.5fr 1fr 1fr 0.8fr;
 }
 
+.grid-date {
+  grid-template-columns: 1fr 0.6fr;
+  margin-top: 12px;
+}
+
 .grid2 {
   grid-template-columns: 1fr 1fr;
+}
+
+.city-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.city-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.city-row-name {
+  flex: 2;
+  margin-bottom: 0;
+}
+
+.city-row-days {
+  flex: 0.8;
+  margin-bottom: 0;
+}
+
+.city-remove-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 40px;
+  margin-bottom: 0;
+  border: 1.2px solid rgba(236, 243, 250, 0.2);
+  border-radius: 10px;
+  background: rgba(14, 27, 38, 0.66);
+  color: rgba(236, 243, 250, 0.6);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.city-remove-btn:hover {
+  border-color: rgba(255, 100, 100, 0.6);
+  color: #ff6464;
+  background: rgba(255, 100, 100, 0.1);
+}
+
+.city-add-btn {
+  align-self: flex-start;
+  padding: 6px 16px;
+  border: 1.2px dashed rgba(215, 110, 66, 0.5);
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(215, 110, 66, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.city-add-btn:hover {
+  border-color: rgba(215, 110, 66, 0.9);
+  background: rgba(215, 110, 66, 0.1);
+  color: #d76e42;
 }
 
 .field-label {
@@ -839,6 +943,8 @@ const handleSubmit = async () => {
 
 .field-input.ant-input,
 .field-input.ant-input-lg,
+.field-input.ant-input-number,
+.field-input.ant-input-number-lg,
 .field-input.ant-picker,
 .field-select :deep(.ant-select-selector),
 .field-textarea :deep(textarea),
@@ -864,6 +970,11 @@ const handleSubmit = async () => {
   -webkit-box-shadow: 0 0 0 1000px #0e1b26 inset !important;
   -webkit-text-fill-color: #ecf3fa !important;
   transition: background-color 5000s ease-in-out 0s !important;
+}
+
+.field-input.ant-input-number :deep(.ant-input-number-input),
+.field-input.ant-input-number :deep(.ant-input-number-handler-wrap) {
+  color: #ecf3fa !important;
 }
 
 .field-input.ant-input::placeholder,
@@ -1200,7 +1311,8 @@ const handleSubmit = async () => {
   }
 
   .grid4,
-  .grid2 {
+  .grid2,
+  .grid-date {
     grid-template-columns: 1fr;
   }
 }
