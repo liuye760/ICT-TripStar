@@ -1,15 +1,15 @@
-<div align="center">
-  <img width="400" alt="brand" src="https://raw.atomgit.com/user-images/assets/9882448/3d787e68-557f-458e-9e55-a1881c2bdf47/标头.png" />
+<div align="center" style="display: flex; justify-content: center; align-items: center; gap: 2px;">
+  <img width="400" alt="brand" src="https://github.com/user-attachments/assets/50c490da-9042-4661-bf8f-f7fd8084a506" />
 </div>
 <p align="center">
   <img src="https://img.shields.io/badge/license-GPL--2.0-orange">
-  <img src="https://img.shields.io/badge/version-v2.0.0-green">
+  <img src="https://img.shields.io/badge/version-v2.1.0-green">
   <img src="https://img.shields.io/badge/Docker-Build-blue?logo=docker">
   <img src="https://img.shields.io/badge/python-3.10+-blue.svg">
   <img src="https://img.shields.io/badge/vue-3.x-brightgreen.svg">
   <img src="https://img.shields.io/badge/FastAPI-0.100+-teal.svg">
-  <img src="https://atomgit.com/lsdv/TripStar/star/badge.svg">
 </p>
+
 <div align="center">
 
 [🇨🇳 中文](README.md) | [🇺🇸 English](README_en.md) | [🇯🇵 日本語](README_ja.md)
@@ -23,8 +23,7 @@
 
 > [!IMPORTANT]
 > 
-> 可直接体验项目，完整体验项目功能可自行本地部署，**受风控影响在线体验没有接入小红书**：[旅途星辰 (TripStar) - AI 旅行智能体](https://modelscope.cn/studios/lcclxy/Journey-to-the-China)
-> 
+> 本地部署可直接体验项目，完整体验项目功能需配置好相关的key，探索丰富功能， 
 > 其中包括：旅行计划、景点地图概览、预算明细、每日行程：行程描述、交通方式、住宿推荐、景点安排（地址、游览时长、景点描述、预约提醒）、餐饮安排、天气信息、知识图谱可视化、沉浸式伴游 AI 问答......
 
 ## 项目简介
@@ -43,10 +42,13 @@
 * **多智能体协作协同**: 采用分工明确的多个 Agent（如天气预报员、酒店推荐专家），通过工作流 (Workflow) 协同完成复杂的旅行规划任务。
 * **知识图谱可视化**: 将生成的行程数据实时转换为节点关系图，直观展示"城市-天数-行程节点-预算"的空间结构。
 * **沉浸式伴游 AI 问答**: 在生成报告后，提供悬浮式 AI 问答窗口（左下角），AI 拥有完整行程的上下文记忆，用户可随时针对行程细节（如票价、适宜性）进行追问。
+* **多城市行程规划**: 支持在一次旅行中规划多个城市，动态添加城市并设置停留天数，系统自动计算总行程天数。城际移动日智能标注交通建议，预算面板独立统计城际交通费用，天气面板按城市分别展示，知识图谱以多城市拓扑呈现完整路线。
+* **用户偏好记忆模块**: 内置分权重的用户专属旅行偏好记忆库，支持遗忘机制与 TOP-K 召回。开启后会在行程生成成功后自动提取稳定偏好并打分入库，下次规划时将高权重偏好注入 Agent Prompt，让推荐持续贴合用户习惯。
 * **奢华暗黑玻璃拟物风**: 全新设计的暗黑系玻璃拟物化 (Dark Luxury Glassmorphism) 界面，提供极具沉浸感的高级视觉体验。
 ---
 > 举个例子要去中国——西安玩耍，只需要填写地点、日期、偏好设置，即可等待行程规划的结果，一眼预览如何安排旅游景点
-![西安.png](https://raw.atomgit.com/user-images/assets/9882448/32be924c-cb7b-4b1f-a925-553076a4a6a9/西安.png '西安.png')
+<img width="1606" height="740" alt="image" src="https://github.com/user-attachments/assets/699fa242-b959-460d-9442-90be0b19db22" />
+
 
 
 ## 系统架构
@@ -165,20 +167,36 @@ sequenceDiagram
 * Python 3.10+
 * Node.js 18+
 * 大模型 API Key（推荐使用兼容 OpenAI 格式的服务商，如豆包）
-* 高德地图两种key： Web服务 、 Web端(JS API) (其**安全密钥 JSCode**配置在index.html中)（[高德api](https://lbs.amap.com/)）
+* 高德地图两种 Key：Web 服务 Key（后端 REST 服务）与 Web端(JS API) Key（前端地图渲染）。AMap JS API 2.0 的安全密钥 JSCode 仍然必须填写，但填写到 `.env` / Docker 根目录 `.env` 的 `VITE_AMAP_SECURITY_JS_CODE`，构建或启动前端开发服务时会自动替换 `index.html` 里的占位符，不要把真实密钥直接手写进 `index.html`。（[高德 API](https://lbs.amap.com/)）
 * [Google Maps API Key](https://developers.google.com/maps/apis-by-platform)（若要使用 Google 地图引擎，必须在 Google Cloud 控制台中开通：**Geocoding API, Places API (New), Directions API, Maps JavaScript API, Weather API**，需要绑卡）
 * 小红书Cookie（[小红书](https://www.xiaohongshu.com/) 网页端登录后从浏览器开发者工具复制）
 * 安装 `uv` 包管理器
 
 ### Docker / Compose 配置约定
 
-推荐通过 docker-compose 一键启动项目（包含前端和后端环境），在运行之前，确保填补 `.env` 文件相关的环境变量：
+推荐通过 docker-compose 一键启动项目（包含前端和后端环境），在运行之前，先复制根目录配置模板并填补 `.env` 里的环境变量：
+
+```bash
+cp .env.example .env
+```
 
 * 容器启动时不再读取项目目录里的 `backend/.env`，请确保将配置以环境变量的形式传入。
-* `docker-compose.yaml` 中显式配置了必要的运行时代理和 API keys，支持传入 `GOOGLE_MAPS_API_KEY` 与 `GOOGLE_MAPS_PROXY` 等变量。
-* 前端构建期变量 `VITE_AMAP_WEB_JS_KEY` 会通过 `build.args` 自动注入前端。
+* `docker-compose.yaml` 中显式配置了必要的运行时代理和 API keys，支持传入 `GOOGLE_MAPS_API_KEY` 与 `GOOGLE_MAPS_PROXY` 等变量；其中 `GOOGLE_MAPS_PROXY` 只用于后端 Google Maps 服务，不会影响 LLM、小红书或高德请求。
+* 前端构建期变量 `VITE_AMAP_WEB_JS_KEY` 与 `VITE_AMAP_SECURITY_JS_CODE` 会通过 `build.args` 自动注入前端；修改后需要重新构建镜像。
+* 前端设置页可修改后端运行时配置（LLM、小红书、高德 Web 服务 Key、Google Maps Key/代理等）。敏感字段会被遮罩返回，保存遮罩值时后端会保持原密钥不变。
 
+根目录 `.env` 示例：
 
+```env
+LLM_API_KEY=your_api_key
+LLM_BASE_URL=https://your-openai-compatible-endpoint/v1
+LLM_MODEL_ID=your_model
+XHS_COOKIE="a1=xxx; web_session=xxx"
+VITE_AMAP_WEB_KEY=your_amap_web_service_key
+VITE_AMAP_WEB_JS_KEY=your_amap_web_js_key
+VITE_AMAP_SECURITY_JS_CODE=your_amap_security_js_code
+GOOGLE_MAPS_API_KEY=
+GOOGLE_MAPS_PROXY=
 ```
 
 本地开发仍可按下面步骤分别配置和启动 `backend/.env` 和 `frontend/.env`。
@@ -194,14 +212,14 @@ cd backend
 # 安装小红书签名引擎的 Node.js 依赖
 npm install
 
-# 创建虚拟环境
-python -m venv .venv
+# 使用 uv 创建虚拟环境并安装依赖
+uv venv .venv
 
 # 激活虚拟环境
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
 # 安装项目依赖包
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 
 # 复制配置文件并填入相应的 API KEY
 cp .env.example .env
@@ -209,6 +227,7 @@ cp .env.example .env
 # [必填] VITE_AMAP_WEB_KEY (高德地图 web服务 类型的key)
 # [必填] XHS_COOKIE（小红书网页端登录后的Cookie）
 # [选填] GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_PROXY（如果需要支持 Google 地图引擎）
+#         GOOGLE_MAPS_PROXY 只作用于 Google Maps 后端服务，不影响 LLM/小红书/高德。
 
 # 启动 FastAPI (推荐通过 uvicorn)
 uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
@@ -225,10 +244,11 @@ cd frontend
 # 使用 npm (或 pnpm/yarn) 安装依赖
 npm install
 
-# 配置前端环境变量，创建 .env 文件
-# [必填] VITE_AMAP_WEB_KEY 与后端保持一致
+# 复制配置文件并填入相应的 Key
+cp .env.example .env
 # [必填] VITE_AMAP_WEB_JS_KEY 必须是 Web端(JS API) 类型的key
-# 另外，由于 JS API 2.0 政策要求，**还需要在 index.html 注入你的安全密钥(securityJsCode)**
+# [必填] VITE_AMAP_SECURITY_JS_CODE 为 Web端(JS API) 安全密钥 JSCode
+# [可选] VITE_API_BASE_URL 默认为 http://localhost:8000；同源部署可留空
 
 # 启动 Vite 开发服务器
 npm run dev
@@ -258,7 +278,7 @@ TripStar/
 │   │   ├── views/                 # 主路由视图 (Home.vue 表单输入; Result.vue 路书展示)
 │   │   ├── components/            # 独立复用的 UI / 背景组件
 │   │   └── services/              # Axios 异步轮询及配置重试逻辑 (api.ts)
-│   ├── index.html                 # 入口挂载及高德地图 SecurityKey 预设
+│   ├── index.html                 # 入口挂载及高德地图 SecurityKey 占位符
 │   ├── .env                       # 本地前端开发环境变量（Docker 构建时忽略）
 │   └── package.json
 │
@@ -269,7 +289,11 @@ TripStar/
 
 > 下面是部分运行结果，丰富的功能探索中...
 
-![3-1.png](https://raw.atomgit.com/user-images/assets/9882448/3ed458c2-2fd2-46c4-8e40-29d9c756f88a/3-1.png '3-1.png')![3-2.png](https://raw.atomgit.com/user-images/assets/9882448/cb04aa05-28e3-483c-82fe-2dba179f3d65/3-2.png '3-2.png')![3-3.png](https://raw.atomgit.com/user-images/assets/9882448/a12b0e28-1235-4625-8725-0d69534cbdaf/3-3.png '3-3.png')![3-4.png](https://raw.atomgit.com/user-images/assets/9882448/9e77e3ce-9705-452e-8e06-58521f86efdc/3-4.png '3-4.png')
+<img width="1600" height="799" alt="image" src="https://github.com/user-attachments/assets/20221707-c115-4da7-aa49-80eec772bc33" />
+<img width="1598" height="801" alt="image" src="https://github.com/user-attachments/assets/1b4b745e-98f1-4868-a6dd-d32909077713" />
+<img width="1649" height="805" alt="image" src="https://github.com/user-attachments/assets/fe775f15-7a1e-467e-a1c4-f97361e13d95" />
+<img width="1599" height="823" alt="image" src="https://github.com/user-attachments/assets/a262a33d-4dbc-4f5a-b392-9b2d0ab66a31" />
+<img width="1599" height="741" alt="image" src="https://github.com/user-attachments/assets/2c236df0-6ad2-44a0-8976-93d84ea14b1f" />
 
 
 
@@ -283,10 +307,33 @@ TripStar/
 - [x] ~~可查看历史计划支持，通过任务和后端持久化解决~~
 - [x] ~~支持代理配置 (HTTP/SOCKS5) 以确保国内可用 Google 服务~~
 - [x] ~~修改导出图片的外观，增加地图，提高可读性~~
-- [ ] 支持多城市旅行
+- [x] ~~支持多城市旅行~~
 - [ ] 添加小红书链接以及美食推荐增强
 - [ ] 前端优化
+- [ ] 车程信息
+- [ ] 服务器在线部署
+
+
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=1sdv%2Ftripstar&type=date&legend=bottom-right">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=1sdv/tripstar&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=1sdv/tripstar&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=1sdv/tripstar&type=date&legend=top-left" />
+ </picture>
+</a>
+
+
+## 贡献者
+
+<a href="https://github.com/1sdv/TripStar/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=1sdv/TripStar" />
+</a>
 
 
 ## 🙏 致谢
-感谢 [linuxdo](https://linux.do/) 社区的交流、分享与反馈，让 TripStar 的迭代更高效。
+感谢 [linuxdo](https://linux.do/) 社区的交流、分享与反馈，让 TripStar 的迭代更高效，同时欢迎大家进群交流反馈
+<img width="431" height="411" alt="image" src="https://github.com/user-attachments/assets/118d46c0-a8e9-42fb-8110-c233fc4f6277" />
+

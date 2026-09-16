@@ -14,12 +14,12 @@ COPY frontend/ ./
 
 # 接收构建参数
 ARG VITE_AMAP_WEB_JS_KEY
-ARG VITE_AMAP_WEB_KEY
+ARG VITE_AMAP_SECURITY_JS_CODE
 
 # 设置构建时环境变量：API 使用相对路径(同源部署)
 ENV VITE_API_BASE_URL=""
 ENV VITE_AMAP_WEB_JS_KEY=${VITE_AMAP_WEB_JS_KEY:-your_amap_web_js_api_key_here}
-ENV VITE_AMAP_WEB_KEY=${VITE_AMAP_WEB_KEY:-your_amap_web_api_key_here}
+ENV VITE_AMAP_SECURITY_JS_CODE=${VITE_AMAP_SECURITY_JS_CODE:-}
 
 # 跳过 vue-tsc 类型检查，直接构建（类型错误不影响运行）
 RUN npx vite build
@@ -59,9 +59,10 @@ COPY --from=frontend-builder /build/dist ./frontend/dist
 
 # 复制启动脚本
 COPY start.sh ./start.sh
+RUN sed -i 's/\r$//' ./start.sh
 RUN chmod +x ./start.sh
 
-# 魔搭创空间要求端口 7860
+# 端口 7860
 EXPOSE 7860
 
 CMD ["./start.sh"]

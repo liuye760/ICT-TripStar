@@ -5,7 +5,7 @@
 <img width="1823" height="805" alt="image" src="https://github.com/user-attachments/assets/e7fb750f-32e5-4a77-93f7-e7b1c4e5e915" />
 <p align="center">
   <img src="https://img.shields.io/badge/license-GPL--2.0-orange">
-  <img src="https://img.shields.io/badge/version-v2.0.0-green">
+  <img src="https://img.shields.io/badge/version-v2.1.0-green">
   <img src="https://img.shields.io/badge/Docker-Build-blue?logo=docker">
   <img src="https://img.shields.io/badge/python-3.10+-blue.svg">
   <img src="https://img.shields.io/badge/vue-3.x-brightgreen.svg">
@@ -40,6 +40,8 @@ Unlike traditional travel guide websites, this project adopts an innovative mode
 * **Multi-Agent Collaboration**: Employs multiple agents with clear divisions of labor (e.g., Weather Forecaster, Hotel Recommendation Expert), working together via a defined Workflow to complete complex travel planning tasks.
 * **Knowledge Graph Visualization**: Real-time conversion of generated itinerary data into a node-relationship graph, intuitively displaying the spatial structure of "City - Days - Itinerary Nodes - Budget".
 * **Immersive AI Q&A Companion**: After generating the report, provides a floating AI Q&A window (bottom left). The AI retains complete contextual memory of the itinerary, allowing users to ask follow-up questions at any time regarding itinerary details (like ticket prices, or suitability).
+* **Multi-City Trip Planning**: Plan trips spanning multiple cities in one journey. Dynamically add cities with individual stay durations, and the system auto-calculates the total travel days. Inter-city transfer days are smartly annotated with transportation suggestions, the budget panel tracks inter-city transport costs separately, the weather panel displays forecasts per city, and the knowledge graph renders the full multi-city route topology.
+* **User Preference Memory**: Built-in weighted per-user travel preference memory with decay and TOP-K recall. When enabled, TripStar extracts stable preferences after successful itinerary generation, scores and stores them, then injects high-weight memories into future Agent prompts so recommendations become more aligned with the user's habits.
 * **Luxury Dark Glassmorphism Design**: A completely redesigned Dark Luxury Glassmorphism UI, offering a highly immersive, premium visual experience.
 
 ---
@@ -52,54 +54,78 @@ Unlike traditional travel guide websites, this project adopts an innovative mode
 The project uses a standard decoupled frontend-backend architecture, divided into the Vue frontend interaction layer, FastAPI backend service layer, and the LLM/Agents intelligent inference layer.
 
 ```mermaid
-graph TD
-    subgraph G1 ["Frontend View"]
-        A1["Param Input Home.vue"]
-        A2["Immersive Loading Animation"]
-        A3["Premium Itinerary Result.vue"]
-        A4["Knowledge Graph Sidebar"]
-        A5["AI Travel Agent Float Window"]
+sequenceDiagram
+    autonumber
+    
+    participant Client as Frontend (User)
+    participant Route as api/routes/trip.py
+    participant Planner as trip_planner_agent.py
+    participant XHS as xhs_service.py
+    participant Maps as map_dispatcher.py
+    participant LLM as llm_service.py
+    participant POI as api/routes/poi.py
+    participant KG as knowledge_graph_service.py
+
+    Client->>Route: POST /api/trip/plan (city, days, preferences)
+    Route-->>Client: Return task_id & ws_url
+    Route->>Planner: Start async task _run_trip_planning(request)
+    Client->>Route: Subscribe via WebSocket /ws/{task_id}
+    Note right of Route: Push processing/progress status in real time via WebSocket
+    
+    rect rgb(240, 248, 255)
+        Note over Planner, LLM: Parallel stage (asyncio.gather optimization)
+        
+        par [1/3] Attraction search: Xiaohongshu native API refinement
+            Planner->>XHS: search_xhs_attractions(city, keywords, lang)
+            XHS->>XHS: XhsNativeClient native signed requests / SSR fallback scraping
+            XHS->>LLM: Feed travel notes into Prompt to extract an attraction JSON array
+            LLM-->>XHS: [{"name": "Forbidden City", "duration": 120, ...}]
+            
+            loop Fill coordinates for each refined attraction
+                XHS->>Maps: geocode_unified(name, city)
+                Note right of Maps: Google geocoding first, fallback to AMap REST on failure
+                Maps-->>XHS: Coordinates {longitude, latitude}
+            end
+            XHS-->>Planner: Return assembled Xiaohongshu attraction candidates
+            
+        and [2/3] Weather search: Agent calls Tool
+            Planner->>Planner: weather_agent.run()
+            Planner->>Maps: Agent calls Google/AMap MCP Weather Tool
+            Maps-->>Planner: Return future weather data
+            Note right of Planner: If Google API fails, automatically fallback to AMap weather REST
+            
+        and [3/3] Hotel search: Agent calls Tool
+            Planner->>Planner: hotel_agent.run()
+            Planner->>Maps: Agent calls Google/AMap MCP POI Text Search
+            Maps-->>Planner: Return hotel list
+        end
+    end
+    
+    rect rgb(255, 240, 245)
+        Note over Planner, LLM: Serial aggregation stage: final planning fusion
+        Planner->>LLM: Combine attraction, weather, and hotel contexts into the final Planner Prompt
+        LLM-->>Planner: [High-risk operation] Return a complex nested JSON string with itinerary and budget
+        
+        Planner->>Planner: _parse_response() fault-tolerant parsing
+        Note right of Planner: 1. Clean noisy characters<br>2. Fix unescaped quotes<br>3. Repair truncation by closing brackets<br>4. Force extract JSON<br>5. Ask LLM to repair if all else fails
     end
 
-    subgraph G2 ["Backend Gateway"]
-        B1["Async Polling <br/> POST/plan & GET/status"]
-        B2["Contextual AI Q&A<br/>POST/chat/ask"]
-        B3["Attraction Image API<br/>GET/poi/photo"]
+    Planner->>KG: build_knowledge_graph(trip_plan, lang)
+    Note right of KG: Extract nodes and edges for cities, days, attractions, budget, and suggestions, then translate labels by language
+    KG-->>Planner: graph_data (nodes, edges, categories)
+
+    Planner-->>Route: Return full TripPlanResponse structure
+    Route->>Route: Persist _update_task_state(status="completed") to disk
+    Route-->>Client: Push success result via WebSocket (plan JSON and graph topology)
+    
+    rect rgb(240, 255, 240)
+        Note over Client, XHS: Async frontend lazy loading: attraction image search
+        Client->>POI: GET /api/poi/photo?name=xxx
+        POI->>XHS: get_photo_from_xhs(keyword)
+        XHS->>XHS: Native search for "xxx scenery" and take the first image from the first valid note
+        XHS-->>POI: photo_url
+        POI-->>Client: Image loaded successfully
     end
-
-    subgraph G3 ["Multi-Agent Engine"]
-        C1["Main Journey Agent"]
-        C2["Xiaohongshu Parser<br/>(SSR + LLM Refine)"]
-        C3["Weather Agent"]
-        C4["Hotel Recommendation Agent"]
-    end
-
-    subgraph G4 ["Service Layer"]
-        D1["LLM API <br/> doubao-seed-1-8-251228"]
-        D2["Geocoding / POI Search Server <br/> (AMap/Google)"]
-        D3["Weather/Time Retrieval Tool"]
-        D4["Xiaohongshu API<br/>Search/SSR Scrape"]
-    end
-
-    %% Interactions
-    A1 --> B1
-    A3 <--> B1
-    A3 --> B3
-    A5 <--> B2
-
-    B1 --> C1
-    B2 --> D1
-    B3 --> D4
-
-    C1 --> C2
-    C1 --> C3
-    C1 --> C4
-
-    C2 <--> D4
-    C2 --> D1
-    C2 --> D2
-    C3 <--> D3
-    C4 <--> D2
 ```
 
 ---
@@ -139,17 +165,36 @@ The frontend renders dynamic Vue structures recursively by reading JSON data:
 * Python 3.10+
 * Node.js 18+
 * Large Model API Key (OpenAI-compatible endpoints highly recommended, e.g., Doubao)
-* AMap Keys (Web Service & Web JS API) with **Security JSCode configured in `index.html`** or Google Maps APIs. If using [Google Maps](https://developers.google.com/maps/apis-by-platform), you must enable: **Geocoding API, Places API (New), Directions API, Maps JavaScript API, and Weather API** in Google Cloud Console, and an active billing account is strictly required.
+* AMap Keys: Web Service Key for backend REST services, Web JS API Key for frontend map rendering, and AMap JS API 2.0 Security JSCode. The Security JSCode is still required, but it should be filled in `.env` / the Docker root `.env` as `VITE_AMAP_SECURITY_JS_CODE`; Vite replaces the placeholder in `index.html` during frontend dev/build. Do not hard-code the real secret directly in `index.html`. If using [Google Maps](https://developers.google.com/maps/apis-by-platform), you must enable: **Geocoding API, Places API (New), Directions API, Maps JavaScript API, and Weather API** in Google Cloud Console, and an active billing account is strictly required.
 * Xiaohongshu Cookie (Retrieve from browser dev tools after logging in on Web)
 * The `uv` package manager
 
 ### Docker / Compose Conventions
 
-It is highly recommended to start the project (both frontend and backend) via `docker-compose`. Ensure your `.env` variables are configured before starting:
+It is highly recommended to start the project (both frontend and backend) via `docker-compose`. Copy the root config template first and fill your `.env` variables before starting:
+
+```bash
+cp .env.example .env
+```
 
 * The backend does NOT read the `backend/.env` file during container startup. All config is passed via environments setup.
-* `docker-compose.yaml` explicitly maps essential proxies and API keys, supporting variables like `GOOGLE_MAPS_API_KEY` and `GOOGLE_MAPS_PROXY`.
-* Frontend build-time variable `VITE_AMAP_WEB_JS_KEY` is injected via `build.args`.
+* `docker-compose.yaml` explicitly maps essential proxies and API keys, supporting variables like `GOOGLE_MAPS_API_KEY` and `GOOGLE_MAPS_PROXY`. `GOOGLE_MAPS_PROXY` is used only by backend Google Maps services; it does not affect LLM, Xiaohongshu, or AMap requests.
+* Frontend build-time variables `VITE_AMAP_WEB_JS_KEY` and `VITE_AMAP_SECURITY_JS_CODE` are injected via `build.args`; rebuild the image after changing them.
+* The frontend settings page can update backend runtime settings such as LLM, Xiaohongshu, AMap Web Service Key, and Google Maps key/proxy. Secret values are masked in API responses, and saving a masked value keeps the original secret unchanged.
+
+Root `.env` example:
+
+```env
+LLM_API_KEY=your_api_key
+LLM_BASE_URL=https://your-openai-compatible-endpoint/v1
+LLM_MODEL_ID=your_model
+XHS_COOKIE="a1=xxx; web_session=xxx"
+VITE_AMAP_WEB_KEY=your_amap_web_service_key
+VITE_AMAP_WEB_JS_KEY=your_amap_web_js_key
+VITE_AMAP_SECURITY_JS_CODE=your_amap_security_js_code
+GOOGLE_MAPS_API_KEY=
+GOOGLE_MAPS_PROXY=
+```
 
 **One-Click Start Command:**
 ```bash
@@ -173,21 +218,22 @@ cd backend
 # Install Node.js dependencies for Xiaohongshu signature engine
 npm install
 
-# Create virtual environment
-python -m venv .venv
+# Create virtual environment with uv
+uv venv .venv
 
 # Activate virtual environment
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
 # Install project dependencies
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 
 # Copy config and fill your API KEYs
 cp .env.example .env
 # [Required] LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_ID (pick a model good at JSON struct)
-# [Optional] VITE_AMAP_WEB_KEY
+# [Required] VITE_AMAP_WEB_KEY (AMap Web Service Key for backend REST services)
 # [Required] XHS_COOKIE
-# [Required] GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_PROXY
+# [Optional] GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_PROXY
+#            GOOGLE_MAPS_PROXY applies only to backend Google Maps services.
 
 # Start FastAPI (Uvicorn recommended)
 uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
@@ -203,10 +249,11 @@ cd frontend
 # Install dependencies (npm/pnpm/yarn)
 npm install
 
-# Set frontend environment config.
-# [Required] VITE_AMAP_WEB_KEY (Same as backend)
-# [Required] VITE_AMAP_WEB_JS_KEY 
-# **MUST ALSO inject Security JSCode in index.html (AMap API v2.0 requirement)**
+# Copy config and fill your Keys
+cp .env.example .env
+# [Required] VITE_AMAP_WEB_JS_KEY
+# [Required] VITE_AMAP_SECURITY_JS_CODE
+# [Optional] VITE_API_BASE_URL defaults to http://localhost:8000; leave empty for same-origin deployment.
 
 # Run Vite dev server
 npm run dev
@@ -234,7 +281,7 @@ TripStar/
 │   │   ├── views/                 # Views (Home.vue; Result.vue)
 │   │   ├── components/            # UI components
 │   │   └── services/              # Async polling & retries
-│   ├── index.html                 # Index Entry & AMap Token injection
+│   ├── index.html                 # Index entry & AMap Security JSCode placeholder
 │   ├── .env                       # Frontend Local Env
 │   └── package.json
 │
@@ -257,18 +304,26 @@ TripStar/
 - [x] ~~History Plans Record Support~~
 - [x] ~~HTTP/SOCKS5 Proxy Config~~
 - [x] ~~Better Export Image aesthetics~~
-- [ ] Multi-City Travel Planning
+- [x] ~~Multi-City Travel Planning~~
 - [ ] Advanced Dining Recommendations
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=1sdv%2FTripStar&type=date&logscale=&legend=top-left">
+<a href="https://www.star-history.com/?repos=1sdv%2Ftripstar&type=date&legend=bottom-right">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=1sdv/TripStar&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=1sdv/TripStar&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=1sdv/TripStar&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=1sdv/tripstar&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=1sdv/tripstar&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=1sdv/tripstar&type=date&legend=top-left" />
  </picture>
 </a>
+
+
+## Contributors
+
+<a href="https://github.com/1sdv/TripStar/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=1sdv/TripStar" />
+</a>
+
 
 ## 🙏 Acknowledgements
 Thanks to the [linux.do](https://linux.do/) community for communication and feedback, making TripStar iterate more efficiently.
