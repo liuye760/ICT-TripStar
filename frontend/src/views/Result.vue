@@ -15,6 +15,9 @@
               <a-menu-item key="budget" v-if="tripPlan.budget">
                 <span>{{ t('result.side.budget') }}</span>
               </a-menu-item>
+              <a-menu-item key="budget-dashboard" v-if="tripPlan.budget">
+                <span>{{ t('result.side.budgetDashboard') }}</span>
+              </a-menu-item>
               <a-menu-item key="map">
                 <span>{{ t('result.side.map') }}</span>
               </a-menu-item>
@@ -233,6 +236,74 @@
             </a-card>
           </div>
         </div>
+
+        <!-- 预算看板 -->
+        <a-card
+          v-show="activeSection === 'budget-dashboard' && !!tripPlan.budget"
+          id="budget-dashboard"
+          :bordered="false"
+          class="budget-dashboard-card section-shellless"
+        >
+          <div class="budget-dashboard">
+            <div class="budget-dashboard-header">
+              <div class="budget-dashboard-heading">
+                <div class="budget-dashboard-title">{{ t('result.budget.dashboard.title') }}</div>
+                <div class="budget-dashboard-subtitle">{{ t('result.budget.dashboard.subtitle') }}</div>
+              </div>
+              <div class="budget-dashboard-total">
+                <span class="budget-dashboard-total-currency">¥</span>
+                <span class="budget-dashboard-total-value">{{ formatBudgetAmount(budgetDashboardTotal) }}</span>
+              </div>
+            </div>
+
+            <div class="budget-kpi-grid">
+              <div class="budget-kpi-card">
+                <div class="budget-kpi-label">{{ t('result.budget.dashboard.dailyAverage') }}</div>
+                <div class="budget-kpi-value">¥{{ formatBudgetAmount(budgetDashboardDailyAverage) }}</div>
+                <div class="budget-kpi-hint">{{ t('result.budget.dashboard.perDayHint') }}</div>
+              </div>
+              <div class="budget-kpi-card">
+                <div class="budget-kpi-label">{{ t('result.budget.dashboard.peakDay') }}</div>
+                <div class="budget-kpi-value">¥{{ formatBudgetAmount(budgetDashboardPeak?.total ?? 0) }}</div>
+                <div class="budget-kpi-hint">{{ budgetDashboardPeak?.label || '--' }}</div>
+              </div>
+              <div class="budget-kpi-card">
+                <div class="budget-kpi-label">{{ t('result.budget.dashboard.itemCount') }}</div>
+                <div class="budget-kpi-value">{{ budgetDashboardItemCount }}</div>
+                <div class="budget-kpi-hint">{{ t('result.budget.dashboard.itemCountHint') }}</div>
+              </div>
+              <div class="budget-kpi-card">
+                <div class="budget-kpi-label">{{ t('result.budget.dashboard.originalTotal') }}</div>
+                <div class="budget-kpi-value">¥{{ formatBudgetAmount(tripPlan.budget?.total ?? 0) }}</div>
+                <div class="budget-kpi-hint">{{ t('result.budget.dashboard.originalTotalHint') }}</div>
+              </div>
+            </div>
+
+            <div class="budget-chart-grid">
+              <div class="budget-chart-panel">
+                <div class="budget-chart-title">{{ t('result.budget.dashboard.categoryTitle') }}</div>
+                <div ref="budgetPieChartRef" class="budget-chart budget-chart-pie"></div>
+                <div v-if="budgetDashboardTotal <= 0" class="budget-chart-empty">
+                  {{ t('result.budget.dashboard.noData') }}
+                </div>
+              </div>
+              <div class="budget-chart-panel">
+                <div class="budget-chart-title">{{ t('result.budget.dashboard.dailyTitle') }}</div>
+                <div ref="budgetDailyChartRef" class="budget-chart budget-chart-daily"></div>
+                <div v-if="budgetDailyStats.length === 0" class="budget-chart-empty">
+                  {{ t('result.budget.dashboard.noData') }}
+                </div>
+              </div>
+            </div>
+
+            <div class="budget-dashboard-footer">
+              <span class="budget-dashboard-note">{{ t('result.budget.dashboard.note') }}</span>
+              <span v-if="budgetDashboardDiff !== 0" class="budget-dashboard-diff">
+                {{ t('result.budget.dashboard.diff', { amount: formatBudgetAmount(Math.abs(budgetDashboardDiff)) }) }}
+              </span>
+            </div>
+          </div>
+        </a-card>
 
         <!-- 知识图谱 -->
         <a-card v-show="activeSection === 'knowledge-graph'" id="knowledge-graph" :bordered="false" class="kg-card section-shellless">
@@ -643,6 +714,23 @@ type BudgetDetailItem = {
   sourceIndex?: number
 }
 
+type BudgetDashboardCategoryKey = BudgetItemType | 'interCity'
+
+type BudgetCategoryStat = {
+  key: BudgetDashboardCategoryKey
+  amount: number
+  count: number
+  ratio: number
+}
+
+type BudgetDailyStat = {
+  dayNumber: number
+  label: string
+  date: string
+  total: number
+  byType: Record<BudgetItemType, number>
+}
+
 type BudgetRestorePayload =
   | {
       type: 'attraction'
@@ -673,6 +761,11 @@ type BudgetRestoreItem = {
 const budgetFilterType = ref<'all' | BudgetItemType>('all')
 const budgetSortMode = ref<BudgetSortMode>('amountDesc')
 const pendingBudgetItems = ref<BudgetRestoreItem[]>([])
+const budgetPieChartRef = ref<HTMLElement | null>(null)
+const budgetDailyChartRef = ref<HTMLElement | null>(null)
+let budgetPieChart: echarts.ECharts | null = null
+let budgetDailyChart: echarts.ECharts | null = null
+let budgetResizeHandler: (() => void) | null = null
 const activeWeatherIndex = ref(0)
 
 const localeTag = computed(() => {
@@ -939,6 +1032,7 @@ const applyTripPlanPayload = async (payload: {
   await loadAttractionPhotos()
   if (activeSection.value === 'map') await ensureMapReady()
   if (activeSection.value === 'knowledge-graph') await ensureGraphReady()
+  if (activeSection.value === 'budget-dashboard') await renderBudgetDashboard()
   if (activeSection.value === 'overview') await initOverviewSwiper()
 }
 
@@ -1289,6 +1383,7 @@ watch(activeSection, async (section) => {
   if (!tripPlan.value) return
   if (section === 'map') await ensureMapReady()
   if (section === 'knowledge-graph') await ensureGraphReady()
+  if (section === 'budget-dashboard') await renderBudgetDashboard()
   if (section === 'overview') await initOverviewSwiper()
 })
 
@@ -1322,6 +1417,18 @@ onUnmounted(() => {
   if (kgChart) {
     kgChart.dispose()
     kgChart = null
+  }
+  if (budgetResizeHandler) {
+    window.removeEventListener('resize', budgetResizeHandler)
+    budgetResizeHandler = null
+  }
+  if (budgetPieChart) {
+    budgetPieChart.dispose()
+    budgetPieChart = null
+  }
+  if (budgetDailyChart) {
+    budgetDailyChart.dispose()
+    budgetDailyChart = null
   }
 })
 
@@ -1481,13 +1588,19 @@ const recalculateBudgetTotals = (transportationOverride?: number) => {
   const transportationTotal = roundBudgetAmount(
     transportationOverride ?? toBudgetNumber(tripPlan.value.budget?.total_transportation)
   )
+  const interCityTotal = roundBudgetAmount(
+    toBudgetNumber(tripPlan.value.budget?.total_inter_city_transport)
+  )
 
   tripPlan.value.budget = {
     total_attractions: roundBudgetAmount(attractionTotal),
     total_hotels: roundBudgetAmount(hotelTotal),
     total_meals: roundBudgetAmount(mealTotal),
     total_transportation: transportationTotal,
-    total: roundBudgetAmount(attractionTotal + hotelTotal + mealTotal + transportationTotal),
+    total_inter_city_transport: interCityTotal,
+    total: roundBudgetAmount(
+      attractionTotal + hotelTotal + mealTotal + transportationTotal + interCityTotal
+    ),
   }
 }
 
@@ -1594,6 +1707,210 @@ const filteredBudgetItems = computed<BudgetDetailItem[]>(() => {
   })
 
   return sorted
+})
+
+const BUDGET_CHART_COLORS = ['#FF9845', '#5B8FF9', '#5AD8A6', '#F6BD16', '#E8684A'] as const
+const BUDGET_DASHBOARD_TYPES: BudgetItemType[] = ['attraction', 'hotel', 'meal', 'transport']
+
+const getBudgetCategoryLabel = (key: BudgetDashboardCategoryKey): string => {
+  if (key === 'interCity') return t('result.interCityTransport')
+  return t(`result.budget.${key}`)
+}
+
+const budgetCategoryStats = computed<BudgetCategoryStat[]>(() => {
+  const totals: Record<BudgetItemType, number> = { attraction: 0, hotel: 0, meal: 0, transport: 0 }
+  const counts: Record<BudgetItemType, number> = { attraction: 0, hotel: 0, meal: 0, transport: 0 }
+
+  budgetItems.value.forEach((item) => {
+    totals[item.type] = roundBudgetAmount(totals[item.type] + item.amount)
+    counts[item.type] += 1
+  })
+
+  const rows: Array<{ key: BudgetDashboardCategoryKey; amount: number; count: number }> =
+    BUDGET_DASHBOARD_TYPES.map((key) => ({
+      key,
+      amount: totals[key],
+      count: counts[key],
+    }))
+
+  const interCity = roundBudgetAmount(toBudgetNumber(tripPlan.value?.budget?.total_inter_city_transport))
+  if (interCity > 0) {
+    rows.push({ key: 'interCity', amount: interCity, count: 1 })
+  }
+
+  const total = rows.reduce((sum, row) => sum + row.amount, 0)
+  return rows.map((row) => ({
+    ...row,
+    ratio: total > 0 ? row.amount / total : 0,
+  }))
+})
+
+const budgetDashboardTotal = computed(() =>
+  roundBudgetAmount(budgetCategoryStats.value.reduce((sum, item) => sum + item.amount, 0))
+)
+
+const budgetDashboardItemCount = computed(() =>
+  budgetCategoryStats.value.reduce((sum, item) => sum + item.count, 0)
+)
+
+const budgetDashboardDiff = computed(() =>
+  roundBudgetAmount(budgetDashboardTotal.value - toBudgetNumber(tripPlan.value?.budget?.total))
+)
+
+const budgetDailyStats = computed<BudgetDailyStat[]>(() => {
+  if (!tripPlan.value) return []
+
+  const grouped = new Map<number, BudgetDailyStat>()
+  tripPlan.value.days.forEach((day, index) => {
+    grouped.set(index, {
+      dayNumber: index + 1,
+      label: t('common.dayNumber', { day: index + 1 }),
+      date: day.date,
+      total: 0,
+      byType: { attraction: 0, hotel: 0, meal: 0, transport: 0 },
+    })
+  })
+
+  budgetItems.value.forEach((item) => {
+    if (item.dayIndex === null) return
+    const stat = grouped.get(item.dayIndex)
+    if (!stat) return
+    stat.byType[item.type] = roundBudgetAmount(stat.byType[item.type] + item.amount)
+    stat.total = roundBudgetAmount(stat.total + item.amount)
+  })
+
+  return Array.from(grouped.values())
+})
+
+const budgetDashboardDailyAverage = computed(() => {
+  const dayCount = tripPlan.value?.days.length ?? 0
+  return dayCount > 0 ? roundBudgetAmount(budgetDashboardTotal.value / dayCount) : 0
+})
+
+const budgetDashboardPeak = computed<BudgetDailyStat | null>(() => {
+  const peak = budgetDailyStats.value.reduce<BudgetDailyStat | null>(
+    (best, stat) => (!best || stat.total > best.total ? stat : best),
+    null
+  )
+  return peak && peak.total > 0 ? peak : null
+})
+
+const ensureBudgetChartInstances = () => {
+  if (!budgetPieChart && budgetPieChartRef.value) {
+    budgetPieChart = echarts.init(budgetPieChartRef.value, 'grey')
+  }
+  if (!budgetDailyChart && budgetDailyChartRef.value) {
+    budgetDailyChart = echarts.init(budgetDailyChartRef.value, 'grey')
+  }
+  if (budgetPieChart && budgetDailyChart && !budgetResizeHandler) {
+    budgetResizeHandler = () => {
+      budgetPieChart?.resize()
+      budgetDailyChart?.resize()
+    }
+    window.addEventListener('resize', budgetResizeHandler)
+  }
+}
+
+const renderBudgetDashboard = async () => {
+  await nextTick()
+  ensureBudgetChartInstances()
+  if (!budgetPieChart || !budgetDailyChart) return
+
+  const pieData = budgetCategoryStats.value
+    .filter((item) => item.amount > 0)
+    .map((item) => ({ name: getBudgetCategoryLabel(item.key), value: item.amount }))
+
+  budgetPieChart.setOption({
+    backgroundColor: 'transparent',
+    color: [...BUDGET_CHART_COLORS],
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(12, 23, 32, 0.94)',
+      borderColor: 'rgba(215, 110, 66, 0.35)',
+      borderWidth: 1,
+      padding: [10, 14],
+      textStyle: { color: '#fff', fontSize: 13 },
+      formatter: (params: any) =>
+        `${params.marker || ''}${params.name}<br/><b>¥${formatBudgetAmount(params.value)}</b> · ${params.percent}%`,
+    },
+    legend: {
+      bottom: 0,
+      icon: 'circle',
+      itemWidth: 8,
+      itemHeight: 8,
+      itemGap: 14,
+      textStyle: { color: 'rgba(255, 255, 255, 0.72)', fontSize: 12 },
+    },
+    series: [
+      {
+        type: 'pie',
+        radius: ['46%', '70%'],
+        center: ['50%', '46%'],
+        avoidLabelOverlap: true,
+        itemStyle: { borderColor: 'rgba(3, 10, 15, 0.9)', borderWidth: 2 },
+        label: {
+          show: true,
+          color: 'rgba(255, 255, 255, 0.88)',
+          fontSize: 12,
+          formatter: '{b}\n{d}%',
+        },
+        labelLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.28)' } },
+        data: pieData,
+      },
+    ],
+  }, true)
+
+  const dailyStats = budgetDailyStats.value
+  budgetDailyChart.setOption({
+    backgroundColor: 'transparent',
+    color: [...BUDGET_CHART_COLORS],
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: 'rgba(12, 23, 32, 0.94)',
+      borderColor: 'rgba(215, 110, 66, 0.35)',
+      borderWidth: 1,
+      padding: [10, 14],
+      textStyle: { color: '#fff', fontSize: 13 },
+    },
+    legend: {
+      top: 0,
+      icon: 'roundRect',
+      itemWidth: 10,
+      itemHeight: 6,
+      itemGap: 14,
+      textStyle: { color: 'rgba(255, 255, 255, 0.72)', fontSize: 12 },
+    },
+    grid: { left: 8, right: 16, top: 34, bottom: 8, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: dailyStats.map((item) => item.label),
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.18)' } },
+      axisLabel: { color: 'rgba(255, 255, 255, 0.6)', fontSize: 11 },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        color: 'rgba(255, 255, 255, 0.55)',
+        fontSize: 11,
+        formatter: '¥{value}',
+      },
+      splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.08)' } },
+    },
+    series: BUDGET_DASHBOARD_TYPES.map((type) => ({
+      name: getBudgetCategoryLabel(type),
+      type: 'bar',
+      stack: 'budget-total',
+      barMaxWidth: 34,
+      emphasis: { focus: 'series' },
+      data: dailyStats.map((item) => item.byType[type]),
+    })),
+  }, true)
+}
+
+watch([budgetCategoryStats, budgetDailyStats], () => {
+  if (activeSection.value === 'budget-dashboard') void renderBudgetDashboard()
 })
 
 const editBudgetItemAmount = (item: BudgetDetailItem) => {
@@ -4130,6 +4447,184 @@ const drawRoutes = async (AMap: any, attractions: any[]): Promise<any[]> => {
 
 .budget-restore-btn {
   padding: 0 !important;
+}
+
+/* 预算看板 */
+.budget-dashboard-card :deep(.ant-card-body) {
+  padding: 0 !important;
+}
+
+.budget-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px;
+  border-radius: 14px;
+  border: 1.2px solid rgba(255, 255, 255, 0.14);
+  background: rgba(3, 10, 15, 0.88);
+}
+
+.budget-dashboard-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.budget-dashboard-title {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 30px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+
+.budget-dashboard-subtitle {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.budget-dashboard-total {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.budget-dashboard-total-currency {
+  font-size: 24px;
+  line-height: 1.1;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.budget-dashboard-total-value {
+  font-size: 46px;
+  line-height: 1;
+  font-weight: 300;
+  color: #ffd4c3;
+  letter-spacing: 0.01em;
+}
+
+.budget-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.budget-kpi-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.budget-kpi-label {
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.budget-kpi-value {
+  margin-top: 8px;
+  font-size: 26px;
+  line-height: 1.1;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.budget-kpi-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.budget-chart-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 16px;
+}
+
+.budget-chart-panel {
+  position: relative;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.budget-chart-title {
+  margin-bottom: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.budget-chart {
+  width: 100%;
+  height: 300px;
+}
+
+.budget-chart-empty {
+  position: absolute;
+  inset: 46px 14px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(3, 10, 15, 0.62);
+  border-radius: 8px;
+}
+
+.budget-dashboard-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.budget-dashboard-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.budget-dashboard-diff {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #ffd4c3;
+}
+
+@media (max-width: 768px) {
+  .budget-dashboard {
+    padding: 16px;
+  }
+
+  .budget-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .budget-chart-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .budget-chart {
+    height: 260px;
+  }
+
+  .budget-dashboard-title {
+    font-size: 24px;
+  }
+
+  .budget-dashboard-total-value {
+    font-size: 36px;
+  }
 }
 
 /* 地图卡片 */

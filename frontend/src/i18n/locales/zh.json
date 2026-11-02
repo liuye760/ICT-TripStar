@@ -161,6 +161,7 @@
     "side": {
       "overview": "行程概览",
       "budget": "预算明细",
+      "budgetDashboard": "预算看板",
       "map": "景点地图",
       "days": "每日行程",
       "graph": "知识图谱",
@@ -199,7 +200,23 @@
       "restore": "复原",
       "editPrice": "编辑价格",
       "editPrompt": "请输入「{name}」的新价格（当前 ¥{amount}）：",
-      "editConfirm": "确认将「{name}」价格改为 ¥{amount} 吗？"
+      "editConfirm": "确认将「{name}」价格改为 ¥{amount} 吗？",
+      "dashboard": {
+        "title": "预算看板",
+        "subtitle": "按行程明细实时汇总",
+        "dailyAverage": "日均花费",
+        "perDayHint": "按行程天数均摊",
+        "peakDay": "单日最高",
+        "itemCount": "计费条目",
+        "itemCountHint": "含城际交通",
+        "originalTotal": "原始预算",
+        "originalTotalHint": "AI 首次估算",
+        "categoryTitle": "费用分类占比",
+        "dailyTitle": "每日花费趋势",
+        "noData": "暂无可统计的预算数据",
+        "note": "交通费用按天均摊；城际交通不计入每日花费。",
+        "diff": "明细合计与原始预算相差 ¥{amount}，以实时明细为准。"
+      }
     },
     "mapTitle": "景点地图",
     "refreshMap": "刷新地图",

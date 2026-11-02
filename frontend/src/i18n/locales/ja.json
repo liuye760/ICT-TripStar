@@ -161,6 +161,7 @@
     "side": {
       "overview": "旅程概要",
       "budget": "予算内訳",
+      "budgetDashboard": "予算ダッシュボード",
       "map": "観光地マップ",
       "days": "日別プラン",
       "graph": "ナレッジグラフ",
@@ -199,7 +200,23 @@
       "restore": "復元",
       "editPrice": "価格を編集",
       "editPrompt": "「{name}」の新しい価格を入力してください（現在 ¥{amount}）：",
-      "editConfirm": "「{name}」の価格を ¥{amount} に変更しますか？"
+      "editConfirm": "「{name}」の価格を ¥{amount} に変更しますか？",
+      "dashboard": {
+        "title": "予算ダッシュボード",
+        "subtitle": "旅程明細からリアルタイム集計",
+        "dailyAverage": "1日平均",
+        "perDayHint": "旅行日数で按分",
+        "peakDay": "最高の1日",
+        "itemCount": "課金項目",
+        "itemCountHint": "都市間交通を含む",
+        "originalTotal": "当初予算",
+        "originalTotalHint": "AI の初回見積もり",
+        "categoryTitle": "費用カテゴリ別割合",
+        "dailyTitle": "1日ごとの支出推移",
+        "noData": "集計できる予算データがありません",
+        "note": "交通費は日数で均等按分し、都市間交通は1日ごとの支出に含めません。",
+        "diff": "明細合計と当初予算の差は ¥{amount} です。リアルタイムの明細を優先します。"
+      }
     },
     "mapTitle": "観光地マップ",
     "refreshMap": "地図を更新",

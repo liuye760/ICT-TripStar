@@ -161,6 +161,7 @@
     "side": {
       "overview": "Overview",
       "budget": "Budget",
+      "budgetDashboard": "Budget Dashboard",
       "map": "Attraction Map",
       "days": "Daily Itinerary",
       "graph": "Knowledge Graph",
@@ -199,7 +200,23 @@
       "restore": "Restore",
       "editPrice": "Edit Price",
       "editPrompt": "Enter a new price for \"{name}\" (current ¥{amount}):",
-      "editConfirm": "Confirm updating \"{name}\" to ¥{amount}?"
+      "editConfirm": "Confirm updating \"{name}\" to ¥{amount}?",
+      "dashboard": {
+        "title": "Budget Dashboard",
+        "subtitle": "Live totals from itinerary details",
+        "dailyAverage": "Daily Average",
+        "perDayHint": "Spread across trip days",
+        "peakDay": "Peak Day",
+        "itemCount": "Billed Items",
+        "itemCountHint": "Including inter-city transport",
+        "originalTotal": "Original Budget",
+        "originalTotalHint": "First AI estimate",
+        "categoryTitle": "Cost by Category",
+        "dailyTitle": "Daily Spending Trend",
+        "noData": "No budget data to visualize",
+        "note": "Transport is spread across days; inter-city transport is excluded from daily spending.",
+        "diff": "Detail total differs from the original budget by ¥{amount}; live details take precedence."
+      }
     },
     "mapTitle": "Attraction Map",
     "refreshMap": "Refresh Map",
